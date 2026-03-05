@@ -1,5 +1,15 @@
 #!/bin/bash
 
+# 0️⃣ 인자 파싱
+BODY_FILE=""
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+    --body-file) BODY_FILE="$2"; shift ;;
+    *) echo "알 수 없는 옵션: $1"; exit 1 ;;
+  esac
+  shift
+done
+
 # 1️⃣ 현재 브랜치
 BRANCH=$(git branch --show-current)
 
@@ -46,35 +56,26 @@ esac
 
 echo "PR 제목: $TITLE"
 
-# 7️⃣ PR 템플릿 로드
-TEMPLATE_FILE=".github/pull_request_template.md"
-
-if [ -f "$TEMPLATE_FILE" ]; then
-  echo "PR 템플릿 적용: $TEMPLATE_FILE"
-  TEMPLATE=$(cat "$TEMPLATE_FILE")
-
-  # placeholder 치환
-  BODY="${TEMPLATE//\{\{TICKET\}\}/$TICKET}"
-  BODY="${BODY//\{\{COMMITS\}\}/$COMMITS}"
-  BODY="${BODY//\{\{FILES\}\}/$FILES}"
-
+# 7️⃣ PR body 결정
+if [ -n "$BODY_FILE" ] && [ -f "$BODY_FILE" ]; then
+  echo "PR 본문 적용: $BODY_FILE"
+  BODY=$(cat "$BODY_FILE")
 else
-  echo "PR 템플릿이 없습니다. 기본 템플릿 사용"
-
-  BODY=$(cat <<EOF
-## 🎫 Ticket
-${TICKET}
-
+  TEMPLATE_FILE=".github/pull_request_template.md"
+  if [ -f "$TEMPLATE_FILE" ]; then
+    echo "PR 템플릿 적용 (미분석): $TEMPLATE_FILE"
+    BODY=$(cat "$TEMPLATE_FILE")
+  else
+    echo "PR 템플릿이 없습니다. 기본 템플릿 사용"
+    BODY=$(cat <<EOF
 ## ✨ 변경 사항
 ${COMMITS}
 
 ## 📂 변경 파일
 ${FILES}
-
-## 🧪 테스트
-- 로컬 테스트 완료
 EOF
 )
+  fi
 fi
 
 # 8️⃣ PR 생성
